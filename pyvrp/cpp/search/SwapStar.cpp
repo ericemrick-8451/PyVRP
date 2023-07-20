@@ -120,6 +120,10 @@ Cost SwapStar::evaluate(Route *routeU,
     for (Node *U = n(routeU->depot); !U->isDepot(); U = n(U))
         for (Node *V = n(routeV->depot); !V->isDepot(); V = n(V))
         {
+            if (checkSalvageSequenceConstraint(U, V)) {
+                return std::numeric_limits<Cost>::max() / 1000;
+            }
+
             Cost deltaCost = 0;
 
             auto const uWeightDemand = data.client(U->client).demandWeight;
@@ -130,23 +134,35 @@ Cost SwapStar::evaluate(Route *routeU,
             auto const vVolumeDemand = data.client(V->client).demandVolume;
             auto const volumeDiff = uVolumeDemand - vVolumeDemand;
 
+            auto const uSalvageDemand = data.client(U->client).demandSalvage;
+            auto const vSalvageDemand = data.client(V->client).demandSalvage;
+            auto const salvageDiff = uSalvageDemand - vSalvageDemand;
+
             deltaCost += costEvaluator.weightPenalty(routeU->weight() - weightDiff,
                                                    data.weightCapacity());
             deltaCost += costEvaluator.volumePenalty(routeU->volume() - volumeDiff,
                                                    data.volumeCapacity());
+            deltaCost += costEvaluator.salvagePenalty(routeU->salvage() - salvageDiff,
+                                                   data.salvageCapacity());
             deltaCost -= costEvaluator.weightPenalty(routeU->weight(),
                                                    data.weightCapacity());
             deltaCost -= costEvaluator.volumePenalty(routeU->volume(),
                                                    data.volumeCapacity());
+            deltaCost -= costEvaluator.salvagePenalty(routeU->salvage(),
+                                                   data.salvageCapacity());
 
             deltaCost += costEvaluator.weightPenalty(routeV->weight() + weightDiff,
                                                    data.weightCapacity());
             deltaCost += costEvaluator.volumePenalty(routeV->volume() + volumeDiff,
                                                    data.volumeCapacity());
+            deltaCost += costEvaluator.salvagePenalty(routeV->salvage() + salvageDiff,
+                                                   data.salvageCapacity());
             deltaCost -= costEvaluator.weightPenalty(routeV->weight(),
                                                    data.weightCapacity());
             deltaCost -= costEvaluator.volumePenalty(routeV->volume(),
                                                    data.volumeCapacity());
+            deltaCost -= costEvaluator.salvagePenalty(routeV->salvage(),
+                                                   data.salvageCapacity());
 
             deltaCost += removalCosts(routeU->idx, U->client);
             deltaCost += removalCosts(routeV->idx, V->client);
@@ -285,26 +301,65 @@ Cost SwapStar::evaluate(Route *routeU,
     auto const vWeightDemand = data.client(best.V->client).demandWeight;
     auto const uVolumeDemand = data.client(best.U->client).demandVolume;
     auto const vVolumeDemand = data.client(best.V->client).demandVolume;
+    auto const uSalvageDemand = data.client(best.U->client).demandSalvage;
+    auto const vSalvageDemand = data.client(best.V->client).demandSalvage;
 
     deltaCost += costEvaluator.weightPenalty(routeU->weight() - uWeightDemand + vWeightDemand,
                                            data.weightCapacity());
     deltaCost += costEvaluator.volumePenalty(routeU->volume() - uVolumeDemand + vVolumeDemand,
                                            data.volumeCapacity());
+    deltaCost += costEvaluator.salvagePenalty(routeU->salvage() - uSalvageDemand + vSalvageDemand,
+                                           data.salvageCapacity());
     deltaCost
         -= costEvaluator.weightPenalty(routeU->weight(), data.weightCapacity());
     deltaCost
         -= costEvaluator.volumePenalty(routeU->volume(), data.volumeCapacity());
+    deltaCost
+        -= costEvaluator.salvagePenalty(routeU->salvage(), data.salvageCapacity());
 
     deltaCost += costEvaluator.weightPenalty(routeV->weight() + uWeightDemand - vWeightDemand,
                                            data.weightCapacity());
     deltaCost += costEvaluator.volumePenalty(routeV->volume() + uVolumeDemand - vVolumeDemand,
                                            data.volumeCapacity());
+    deltaCost += costEvaluator.salvagePenalty(routeV->salvage() + uSalvageDemand - vSalvageDemand,
+                                           data.salvageCapacity());
     deltaCost
         -= costEvaluator.weightPenalty(routeV->weight(), data.weightCapacity());
     deltaCost
         -= costEvaluator.volumePenalty(routeV->volume(), data.volumeCapacity());
+    deltaCost
+        -= costEvaluator.salvagePenalty(routeV->salvage(), data.salvageCapacity());
 
     return deltaCost;
+}
+
+bool SwapStar::checkSalvageSequenceConstraint(Node *U, Node *V) const
+{
+    // These sequences should violate the constraint
+    // S-B
+    // S-D
+    // B-B
+    // B-D
+    bool uIsClientDelivery = (data.client(U->client).demandWeight || data.client(U->client).demandVolume);
+    bool uIsClientSalvage = (data.client(U->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
+    bool uIsBoth = uIsClientDelivery && uIsClientSalvage;
+
+    bool vIsClientDelivery = (data.client(V->client).demandWeight || data.client(V->client).demandVolume);
+    bool vIsClientSalvage = (data.client(V->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
+    bool vIsBoth = vIsClientDelivery && vIsClientSalvage;
+
+    bool nextUClientDelivery = (data.client(n(U)->client).demandWeight || data.client(n(U)->client).demandVolume);
+    bool nextVClientDelivery = (data.client(n(V)->client).demandWeight || data.client(n(V)->client).demandVolume);
+
+    // S-B or S-D
+    if (uIsClientSalvage && !uIsBoth && ((vIsClientDelivery || vIsBoth) || nextVClientDelivery))
+        return true;
+
+    // B-B or B-D
+    if (uIsBoth && ((vIsBoth || vIsClientDelivery) || nextUClientDelivery))
+        return true;
+
+    return false;
 }
 
 void SwapStar::apply([[maybe_unused]] Route *U, [[maybe_unused]] Route *V) const

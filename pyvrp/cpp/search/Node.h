@@ -17,6 +17,7 @@ struct Node
     // TODO can these data fields be moved to Route?
     Load cumulatedWeight;                  // Weight depot -> client (incl)
     Load cumulatedVolume;                  // Volume depot -> client (incl)
+    Salvage cumulatedSalvage;              // Salvage depot -> client (incl)
     Distance cumulatedDistance;          // Dist depot -> client (incl)
     Distance cumulatedReversalDistance;  // Dist if (0..client) is reversed
 
@@ -40,6 +41,9 @@ struct Node
      * Removes this node and updates the relevant links.
      */
     void remove();
+
+    // Clone routine.
+    Node* clone() const;
 };
 
 bool Node::isDepot() const { return client == 0; }

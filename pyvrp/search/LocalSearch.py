@@ -114,6 +114,7 @@ class LocalSearch:
         # implementation of HGS-CVRP and HGS-VRPTW
         # TODO separate load/export solution from c++ implementation
         # so we only need to do it once
+
         while True:
             solution = self.search(solution, cost_evaluator)
 
@@ -127,8 +128,6 @@ class LocalSearch:
 
             if new_cost < current_cost:
                 solution = new_solution
-                continue
-
             return solution
 
     def intensify(

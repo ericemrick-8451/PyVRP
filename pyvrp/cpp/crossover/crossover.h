@@ -19,7 +19,12 @@ void greedyRepair(std::vector<std::vector<int>> &routes,
                   std::vector<int> const &unplanned,
                   ProblemData const &data,
                   CostEvaluator const &costEvaluator);
+
+// void reorderRoutes(std::vector<std::vector<int>> &routes, ProblemData const &data);
+
+// bool checkSalvageSequenceConstraint(ProblemData const &data, int U, int V);
 }  // namespace crossover
+
 
 /**
  * Performs two SREX crossovers of the given parents. SREX is a method that

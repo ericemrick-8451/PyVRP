@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <unordered_set>
+#include <random>
 
 using Client = int;
 using Clients = std::vector<Client>;
@@ -36,6 +37,7 @@ Routes sortByAscAngle(ProblemData const &data, Routes routes)
 }
 }  // namespace
 
+
 Solution selectiveRouteExchange(
     std::pair<Solution const *, Solution const *> const &parents,
     ProblemData const &data,
@@ -43,6 +45,9 @@ Solution selectiveRouteExchange(
     std::pair<size_t, size_t> const startIndices,
     size_t const numMovedRoutes)
 {
+    std::cout << "          SELECTEXCHANGE Enter" << std::endl;
+
+    std::mt19937 rng;
     // We create two candidate offsprings, both based on parent A:
     // Let A and B denote the set of customers selected from parents A and B
     // Ac and Bc denote the complements: the customers not selected
@@ -233,5 +238,6 @@ Solution selectiveRouteExchange(
 
     auto const cost1 = costEvaluator.penalisedCost(sol1);
     auto const cost2 = costEvaluator.penalisedCost(sol2);
+
     return cost1 < cost2 ? sol1 : sol2;
 }

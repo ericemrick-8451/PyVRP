@@ -37,12 +37,51 @@ template <size_t N, size_t M> class Exchange : public LocalSearchOperator<Node>
     Cost
     evalSwapMove(Node *U, Node *V, CostEvaluator const &costEvaluator) const;
 
+    // Enforce salvage sequence constraint
+    bool checkSalvageSequenceConstraint(Node *U,
+                                        Node *V) const;
+
 public:
     Cost
     evaluate(Node *U, Node *V, CostEvaluator const &costEvaluator) override;
 
     void apply(Node *U, Node *V) const override;
 };
+
+template <size_t N, size_t M>
+bool Exchange<N, M>::checkSalvageSequenceConstraint(Node *U, Node *V) const
+{
+    // These sequences should violate the constraint
+    // S-B
+    // S-D
+    // B-B
+    // B-D
+    // The loops start from U and V respectively and go up to N and M nodes
+    for(size_t uIndex = 0; uIndex < N; ++uIndex, U = n(U)){
+        for(size_t vIndex = 0; vIndex < M; ++vIndex, V = n(V)){
+            bool uIsClientDelivery = (data.client(U->client).demandWeight || data.client(U->client).demandVolume);
+            bool uIsClientSalvage = (data.client(U->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
+            bool uIsBoth = uIsClientDelivery && uIsClientSalvage;
+        
+            bool vIsClientDelivery = (data.client(V->client).demandWeight || data.client(V->client).demandVolume);
+            bool vIsClientSalvage = (data.client(V->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
+            bool vIsBoth = vIsClientDelivery && vIsClientSalvage;
+        
+            bool nextUClientDelivery = (data.client(n(U)->client).demandWeight || data.client(n(U)->client).demandVolume);
+            bool nextVClientDelivery = (data.client(n(V)->client).demandWeight || data.client(n(V)->client).demandVolume);
+
+            // S-B or S-D
+            if (uIsClientSalvage && !uIsBoth && ((vIsClientDelivery || vIsBoth) || nextVClientDelivery))
+                return true;
+        
+            // B-B or B-D
+            if (uIsBoth && ((vIsBoth || vIsClientDelivery) || nextUClientDelivery))
+                return true;
+        }
+    }
+
+    return false;
+}
 
 template <size_t N, size_t M>
 bool Exchange<N, M>::containsDepot(Node *node, size_t segLength) const
@@ -109,15 +148,20 @@ Cost Exchange<N, M>::evalRelocateMove(Node *U,
 
         auto const weightDiff = U->route->weightBetween(posU, posU + N - 1);
         auto const volumeDiff = U->route->volumeBetween(posU, posU + N - 1);
+        auto const salvageDiff = U->route->salvageBetween(posU, posU + N - 1);
 
         deltaCost += costEvaluator.weightPenalty(U->route->weight() - weightDiff,
                                                data.weightCapacity());
         deltaCost += costEvaluator.volumePenalty(U->route->volume() - volumeDiff,
                                                data.volumeCapacity());
+        deltaCost += costEvaluator.salvagePenalty(U->route->salvage() - salvageDiff,
+                                               data.salvageCapacity());
         deltaCost -= costEvaluator.weightPenalty(U->route->weight(),
                                                data.weightCapacity());
         deltaCost -= costEvaluator.volumePenalty(U->route->volume(),
                                                data.volumeCapacity());
+        deltaCost -= costEvaluator.salvagePenalty(U->route->salvage(),
+                                               data.salvageCapacity());
 
         if (deltaCost >= 0)    // if delta cost of just U's route is not enough
             return deltaCost;  // even without V, the move will never be good.
@@ -126,10 +170,14 @@ Cost Exchange<N, M>::evalRelocateMove(Node *U,
                                                data.weightCapacity());
         deltaCost += costEvaluator.volumePenalty(V->route->volume() + volumeDiff,
                                                data.volumeCapacity());
+        deltaCost += costEvaluator.salvagePenalty(V->route->salvage() + salvageDiff,
+                                               data.salvageCapacity());
         deltaCost -= costEvaluator.weightPenalty(V->route->weight(),
                                                data.weightCapacity());
         deltaCost -= costEvaluator.volumePenalty(V->route->volume(),
                                                data.volumeCapacity());
+        deltaCost -= costEvaluator.salvagePenalty(V->route->salvage(),
+                                               data.salvageCapacity());
 
         auto vTWS = TWS::merge(data.durationMatrix(),
                                V->twBefore,
@@ -217,19 +265,26 @@ Cost Exchange<N, M>::evalSwapMove(Node *U,
 
         auto const weightU = U->route->weightBetween(posU, posU + N - 1);
         auto const volumeU = U->route->volumeBetween(posU, posU + N - 1);
+        auto const salvageU = U->route->salvageBetween(posU, posU + N - 1);
         auto const weightV = V->route->weightBetween(posV, posV + M - 1);
         auto const volumeV = V->route->volumeBetween(posV, posV + M - 1);
+        auto const salvageV = V->route->salvageBetween(posV, posV + M - 1);
         auto const weightDiff = weightU - weightV;
         auto const volumeDiff = volumeU - volumeV;
+        auto const salvageDiff = salvageU - salvageV;
 
         deltaCost += costEvaluator.weightPenalty(U->route->weight() - weightDiff,
                                                data.weightCapacity());
         deltaCost += costEvaluator.volumePenalty(U->route->volume() - volumeDiff,
                                                data.volumeCapacity());
+        deltaCost += costEvaluator.salvagePenalty(U->route->salvage() - salvageDiff,
+                                               data.salvageCapacity());
         deltaCost -= costEvaluator.weightPenalty(U->route->weight(),
                                                data.weightCapacity());
         deltaCost -= costEvaluator.volumePenalty(U->route->volume(),
                                                data.volumeCapacity());
+        deltaCost -= costEvaluator.salvagePenalty(U->route->salvage(),
+                                               data.salvageCapacity());
 
         auto vTWS = TWS::merge(data.durationMatrix(),
                                p(V)->twBefore,
@@ -243,10 +298,14 @@ Cost Exchange<N, M>::evalSwapMove(Node *U,
                                                data.weightCapacity());
         deltaCost += costEvaluator.volumePenalty(V->route->volume() + volumeDiff,
                                                data.volumeCapacity());
+        deltaCost += costEvaluator.salvagePenalty(V->route->salvage() + salvageDiff,
+                                               data.salvageCapacity());
         deltaCost -= costEvaluator.weightPenalty(V->route->weight(),
                                                data.weightCapacity());
         deltaCost -= costEvaluator.volumePenalty(V->route->volume(),
                                                data.volumeCapacity());
+        deltaCost -= costEvaluator.salvagePenalty(V->route->salvage(),
+                                               data.salvageCapacity());
     }
     else  // within same route
     {
@@ -289,6 +348,9 @@ Cost Exchange<N, M>::evaluate(Node *U,
                               Node *V,
                               CostEvaluator const &costEvaluator)
 {
+    if (checkSalvageSequenceConstraint(U, V))
+        return std::numeric_limits<Cost>::max() / 1000;
+
     if (containsDepot(U, N) || overlap(U, V))
         return 0;
 

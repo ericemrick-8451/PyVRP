@@ -205,10 +205,15 @@ void LocalSearch::maybeInsert(Node *U,
                                            data.weightCapacity());
     deltaCost += costEvaluator.volumePenalty(V->route->volume() + uClient.demandVolume,
                                            data.volumeCapacity());
+    deltaCost += costEvaluator.salvagePenalty(V->route->salvage() + uClient.demandSalvage,
+                                           data.salvageCapacity());
+
     deltaCost
         -= costEvaluator.weightPenalty(V->route->weight(), data.weightCapacity());
     deltaCost
         -= costEvaluator.volumePenalty(V->route->volume(), data.volumeCapacity());
+    deltaCost
+        -= costEvaluator.salvagePenalty(V->route->salvage(), data.salvageCapacity());
 
     // If this is true, adding U cannot decrease time warp in V's route enough
     // to offset the deltaCost.
@@ -243,10 +248,14 @@ void LocalSearch::maybeRemove(Node *U, CostEvaluator const &costEvaluator)
                                            data.weightCapacity());
     deltaCost += costEvaluator.volumePenalty(U->route->volume() - uClient.demandVolume,
                                            data.volumeCapacity());
+    deltaCost += costEvaluator.salvagePenalty(U->route->salvage() - uClient.demandSalvage,
+                                           data.salvageCapacity());
     deltaCost
         -= costEvaluator.weightPenalty(U->route->weight(), data.weightCapacity());
     deltaCost
         -= costEvaluator.volumePenalty(U->route->volume(), data.volumeCapacity());
+    deltaCost
+        -= costEvaluator.salvagePenalty(U->route->salvage(), data.salvageCapacity());
 
     auto uTWS
         = TWS::merge(data.durationMatrix(), p(U)->twBefore, n(U)->twAfter);
@@ -342,8 +351,9 @@ void LocalSearch::loadSolution(Solution const &solution)
         routeOp->init(solution);
 }
 
-Solution LocalSearch::exportSolution() const
+Solution LocalSearch::exportSolution() // const
 {
+    std::cout << "          LOCALSEARCH EXPORTSOLUTION Enter" << std::endl;
     std::vector<std::vector<int>> solRoutes(data.numVehicles());
 
     for (size_t r = 0; r < data.numVehicles(); r++)
@@ -357,7 +367,25 @@ Solution LocalSearch::exportSolution() const
         }
     }
 
-    return {data, solRoutes};
+    reorderRoutes(solRoutes, data);
+
+    bool repairedConstraintsPassed = false;
+    Solution sol{data, solRoutes};
+    repairedConstraintsPassed = std::all_of(sol.getRoutes().begin(), sol.getRoutes().end(),
+        [this](const Solution::Route &route) { return this->checkSequence(this->data, route); });
+    if (repairedConstraintsPassed) {
+        std::cout << "                    LOCALSEARCH EXPORTSOLUTION repairedConstraintsPassed" << std::endl;
+    }
+    std::cout << "          LOCALSEARCH EXPORTSOLUTION Exit" << std::endl;
+    return sol;
+}
+
+bool LocalSearch::solHasValidSequences(const Solution &sol)
+{
+    bool isValidSequence = false;
+    isValidSequence = std::all_of(sol.getRoutes().begin(), sol.getRoutes().end(),
+        [this](const Solution::Route &route) { return this->checkSequence(this->data, route); });
+    return isValidSequence;
 }
 
 void LocalSearch::addNodeOperator(NodeOp &op) { nodeOps.emplace_back(&op); }
@@ -427,4 +455,147 @@ LocalSearch::LocalSearch(ProblemData const &data, Neighbours neighbours)
         endDepots[i].client = 0;
         endDepots[i].route = &routes[i];
     }
+}
+
+bool LocalSearch::checkSequence(ProblemData const &data, const Solution::Route &route)
+{
+    std::cout << "                    LOCALSEARCH CHECKSEQUENCE Enter" << std::endl;
+    bool foundDelivery = false;
+    bool foundBoth = false;
+    bool foundSalvage = false;
+
+    for (Client c : route) {
+        bool isDelivery = (data.client(c).demandWeight || data.client(c).demandVolume);
+        bool isSalvage = (data.client(c).demandSalvage == 1);
+        bool isBoth = (isDelivery && isSalvage);
+
+        std::cout << "                              LOCALSEARCH CHECKSEQUENCE Client: " << c
+           << " Dem Salv: " << data.client(c).demandSalvage
+           << " Dem Weig: " << data.client(c).demandWeight
+           << " Dem Volu: " << data.client(c).demandVolume
+           << " Salv is: " << isSalvage
+           << " Salv fo: " << foundSalvage << " Both is: "
+           << isBoth << " Both fo: " << foundBoth << " Del is: "
+          << isDelivery << " Del fo: " << isDelivery << std::endl;
+
+        if (isBoth && (foundBoth || foundSalvage))
+        {
+            std::cout << "                              LOCALSEARCH CHECKSEQUENCE Failed (isBoth && (foundBoth || foundSalvage))" << std::endl;
+            std::cout << "                    LOCALSEARCH CHECKSEQUENCE Exit Selective checkSequence" << std::endl;
+            return false;
+        }
+        if (isDelivery && (foundBoth || foundSalvage))
+        {
+            std::cout << "                              LOCALSEARCH CHECKSEQUENCE Failed (isDelivery && (foundBoth || foundSalvage))" << std::endl;
+            std::cout << "                    LOCALSEARCH CHECKSEQUENCE Exit Selective checkSequence" << std::endl;
+            return false;
+        }
+        if (isSalvage && foundBoth)
+        {
+            std::cout << "                              LOCALSEARCH CHECKSEQUENCE Failed (isSalvage && foundBoth)" << std::endl;
+            std::cout << "                    LOCALSEARCH CHECKSEQUENCE Exit Selective checkSequence" << std::endl;
+            return false;
+        }
+
+        if (isSalvage)
+        {
+            if (!foundSalvage)
+                foundSalvage = true;
+        }
+
+        if (isDelivery)
+        {
+            if (!foundDelivery)
+                foundDelivery = true;
+        }
+
+        if(isBoth)
+        {
+            if (!foundBoth)
+                foundBoth = true;
+        }
+
+        continue;
+    }
+    std::cout << "                    LOCALSEARCH CHECKSEQUENCE Exit" << std::endl;
+    return true;
+}
+
+void LocalSearch::reorderRoutes(std::vector<std::vector<Client>> &routes, ProblemData const &data)
+{
+    std::cout << "                    LOCALSEARCH REORDER Enter" << std::endl;
+    std::vector<std::vector<Client>> newRoutes;
+
+    int routeCnt=0;
+    for (auto &route : routes)
+    {
+        std::cout << "                              LOCALSEARCH REORDER Route: " << routeCnt << std::endl;
+        std::vector<Client> deliveryRoute, bothRoute, salvageRoute;
+
+        for (const auto &client : route)
+        {
+            std::cout << "                                        LOCALSEARCH REORDER  Client: " << client << std::endl;
+            bool isDelivery = (data.client(client).demandWeight || data.client(client).demandVolume);
+            bool isSalvage = (data.client(client).demandSalvage == 1);
+            bool isBoth = (isDelivery && isSalvage);
+
+            if (isDelivery && !isBoth)
+            {
+                deliveryRoute.push_back(client);
+            }
+            else if (isBoth)
+            {
+                bothRoute.push_back(client);
+            }
+            else
+            {
+                salvageRoute.push_back(client);
+            }
+        }
+
+        auto deliveryIter = deliveryRoute.begin();
+        auto bothIter = bothRoute.begin();
+        auto salvageIter = salvageRoute.begin();
+
+        while (deliveryIter != deliveryRoute.end() || bothIter != bothRoute.end() || salvageIter != salvageRoute.end())
+        {
+            std::vector<Client> newRoute;
+
+            // Add Ds
+            while (deliveryIter != deliveryRoute.end())
+            {
+                newRoute.push_back(*deliveryIter);
+                ++deliveryIter;
+            }
+
+            // Add single B if exists
+            if (bothIter != bothRoute.end())
+            {
+                newRoute.push_back(*bothIter);
+                ++bothIter;
+            }
+
+            newRoutes.push_back(newRoute);
+
+            // If no more Bs exist, add remaining Ss to new route
+            if (bothIter == bothRoute.end())
+            {
+                newRoute.clear();
+
+                while (salvageIter != salvageRoute.end())
+                {
+                    newRoute.push_back(*salvageIter);
+                    ++salvageIter;
+                }
+
+                if (!newRoute.empty())
+                {
+                    newRoutes.push_back(newRoute);
+                }
+            }
+        }
+        routeCnt++;
+    }
+    std::cout << "                    LOCALSEARCH REORDER Exit" << std::endl;
+    routes = newRoutes;
 }

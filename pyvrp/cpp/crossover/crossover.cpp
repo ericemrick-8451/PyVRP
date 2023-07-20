@@ -58,11 +58,13 @@ Cost deltaCost(Client client,
 }
 }  // namespace
 
+
 void crossover::greedyRepair(Routes &routes,
                              std::vector<Client> const &unplanned,
                              ProblemData const &data,
                              CostEvaluator const &costEvaluator)
 {
+    std::cout << "                    CROSSOVER GREEDY Enter" << std::endl;
     auto const numRoutes = routes.size();
 
     // Determine centroids of each route.
@@ -109,6 +111,16 @@ void crossover::greedyRepair(Routes &routes,
         {
             Client prev, next;
 
+            if (idx != 0)
+            {
+                prev = bestRoute[idx - 1];
+            }
+
+            if (idx != bestRoute.size())
+            {
+                next = bestRoute[idx];
+            }
+
             if (idx == 0)  // try after depot
             {
                 prev = 0;
@@ -131,6 +143,7 @@ void crossover::greedyRepair(Routes &routes,
                 bestCost = cost;
                 offset = idx;
             }
+
         }
 
         // Update route centroid and insert client into route.
@@ -139,5 +152,6 @@ void crossover::greedyRepair(Routes &routes,
         centroids[bestRouteIdx].first = (routeX * size + x) / (size + 1);
         centroids[bestRouteIdx].second = (routeY * size + y) / (size + 1);
         bestRoute.insert(bestRoute.begin() + offset, client);
+
     }
 }

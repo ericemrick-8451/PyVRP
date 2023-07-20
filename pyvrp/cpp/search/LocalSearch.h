@@ -18,6 +18,7 @@ class LocalSearch
     using NodeOp = LocalSearchOperator<Node>;
     using RouteOp = LocalSearchOperator<Route>;
     using Neighbours = std::vector<std::vector<int>>;
+    using Client = int;
 
     ProblemData const &data;
 
@@ -45,7 +46,7 @@ class LocalSearch
     void loadSolution(Solution const &solution);
 
     // Export the LS solution back into a solution.
-    Solution exportSolution() const;
+    Solution exportSolution(); // const;
 
     // Tests the node pair (U, V).
     bool applyNodeOps(Node *U, Node *V, CostEvaluator const &costEvaluator);
@@ -61,6 +62,11 @@ class LocalSearch
 
     // Test removing U from the solution. Called when U can be removed.
     void maybeRemove(Node *U, CostEvaluator const &costEvaluator);
+
+    // Enforce salvage sequence constraint
+
+    void reorderRoutes(std::vector<std::vector<Client>> &routes, ProblemData const &data);
+    bool checkSequence(ProblemData const &data, const Solution::Route &route);
 
 public:
     /**
@@ -107,6 +113,8 @@ public:
     void shuffle(XorShift128 &rng);
 
     LocalSearch(ProblemData const &data, Neighbours neighbours);
+
+    bool solHasValidSequences(const Solution &sol);
 };
 
 #endif  // PYVRP_LOCALSEARCH_H
