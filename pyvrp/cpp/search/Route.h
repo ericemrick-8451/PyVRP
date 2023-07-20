@@ -24,7 +24,6 @@ class Route
     bool isWeightFeasible_;  // Whether current weight load is feasible.
     bool isVolumeFeasible_;  // Whether current volume load is feasible.
     bool isSalvageCapacityFeasible_;  // Whether current salvage demand is salvage capacity feasible.
-    bool isSalvageSequenceFeasible_;  // Whether current route sequence salvage sequence feasible.
 
     Duration timeWarp_;        // Current route time warp.
     bool isTimeWarpFeasible_;  // Whether current time warp is feasible.
@@ -77,13 +76,6 @@ public:           // TODO make fields private
      * @return true if the route exceeds the salvage capacity, false otherwise.
      */
     [[nodiscard]] inline bool hasExcessSalvage() const;
-
-    /**
-     * Determines whether this route is salvage-feasible.
-     *
-     * @return true if the route violates the salvage sequence constraint
-     */
-    [[nodiscard]] inline bool hasSalvageBeforeDelivery() const;
 
     /**
      * Determines whether this route is time-feasible.
@@ -164,15 +156,13 @@ public:           // TODO make fields private
     Route(ProblemData const &data);
 };
 
-bool Route::isFeasible() const { return !hasExcessWeight() && !hasExcessVolume() && !hasExcessSalvage() && !hasSalvageBeforeDelivery() && !hasTimeWarp(); }
+bool Route::isFeasible() const { return !hasExcessWeight() && !hasExcessVolume() && !hasExcessSalvage() && !hasTimeWarp(); }
 
 bool Route::hasExcessWeight() const { return !isWeightFeasible_; }
 
 bool Route::hasExcessVolume() const { return !isVolumeFeasible_; }
 
 bool Route::hasExcessSalvage() const { return !isSalvageCapacityFeasible_; }
-
-bool Route::hasSalvageBeforeDelivery() const { return !isSalvageSequenceFeasible_; }
 
 bool Route::hasTimeWarp() const
 {
