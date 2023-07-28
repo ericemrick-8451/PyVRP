@@ -21,8 +21,8 @@ class TwoOpt : public LocalSearchOperator<Node>
                            Node *V,
                            CostEvaluator const &costEvaluator) const;
 
-    bool checkSalvageSequenceConstraint(Node *U, 
-                                        Node *V) const;
+//    bool checkSalvageSequenceConstraint(Node *U, 
+//                                        Node *V) const;
 
     void applyWithinRoute(Node *U, Node *V) const;
 

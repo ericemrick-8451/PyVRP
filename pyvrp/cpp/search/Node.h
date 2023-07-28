@@ -18,6 +18,7 @@ struct Node
     Load cumulatedWeight;                  // Weight depot -> client (incl)
     Load cumulatedVolume;                  // Volume depot -> client (incl)
     Salvage cumulatedSalvage;              // Salvage depot -> client (incl)
+    Store cumulatedStores;              // Stores depot -> client (incl)
     Distance cumulatedDistance;          // Dist depot -> client (incl)
     Distance cumulatedReversalDistance;  // Dist if (0..client) is reversed
 

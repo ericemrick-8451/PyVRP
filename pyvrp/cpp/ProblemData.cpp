@@ -11,6 +11,8 @@ ProblemData::Client::Client(Coordinate x,
                             Load demandWeight,
                             Load demandVolume,
                             Salvage demandSalvage,
+                            Order clientOrder,
+                            Store clientStore,
                             Duration serviceDuration,
                             Duration twEarly,
                             Duration twLate,
@@ -21,6 +23,8 @@ ProblemData::Client::Client(Coordinate x,
       demandWeight(demandWeight),
       demandVolume(demandVolume),
       demandSalvage(demandSalvage),
+      clientOrder(clientOrder),
+      clientStore(clientStore),
       serviceDuration(serviceDuration),
       twEarly(twEarly),
       twLate(twLate),
@@ -35,6 +39,12 @@ ProblemData::Client::Client(Coordinate x,
 
     if (demandSalvage < 0)
         throw std::invalid_argument("demandSalvage must be >= 0");
+
+    if (clientOrder < -1)
+        throw std::invalid_argument("clientOrder must be >= -1");
+
+    if (clientStore < -1)
+        throw std::invalid_argument("clientStore must be >= -1");
 
     if (serviceDuration < 0)
         throw std::invalid_argument("service_duration must be >= 0");
@@ -67,11 +77,17 @@ Load ProblemData::volumeCapacity() const { return volumeCapacity_; }
 
 Salvage ProblemData::salvageCapacity() const { return salvageCapacity_; }
 
+Order ProblemData::orderRouteLimit() const { return orderRouteLimit_; }
+
+Store ProblemData::routeStoreLimit() const { return routeStoreLimit_; }
+
 ProblemData::ProblemData(std::vector<Client> const &clients,
                          size_t numVehicles,
                          Load weightCap,
                          Load volumeCap,
                          Salvage salvageCap,
+                         Order orderRouteLim,
+                         Store routeStoreLim,
                          Matrix<Distance> const distMat,
                          Matrix<Duration> const durMat)
     : centroid_({0, 0}),
@@ -82,7 +98,9 @@ ProblemData::ProblemData(std::vector<Client> const &clients,
       numVehicles_(numVehicles),
       weightCapacity_(weightCap),
       volumeCapacity_(volumeCap),
-      salvageCapacity_(salvageCap)
+      salvageCapacity_(salvageCap),
+      orderRouteLimit_(orderRouteLim),
+      routeStoreLimit_(routeStoreLim)
 {
     for (size_t idx = 1; idx <= numClients(); ++idx)
     {

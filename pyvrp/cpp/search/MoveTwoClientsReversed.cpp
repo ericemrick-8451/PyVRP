@@ -10,12 +10,13 @@ Cost MoveTwoClientsReversed::evaluate(Node *U,
                                       Node *V,
                                       CostEvaluator const &costEvaluator)
 {
+    std::cout << "Enter MoveTwoClientsReversed:evaluate" << std::endl;
     if (U == n(V) || n(U) == V || n(U)->isDepot())
         return 0;
 
-    if(checkSalvageSequenceConstraint(U, V)) {
-        return std::numeric_limits<Cost>::max() / 1000;
-    }
+    // if(checkSalvageSequenceConstraint(U, V)) {
+    //     return std::numeric_limits<Cost>::max() / 1000;
+    // }
 
     auto const posU = U->position;
     auto const posV = V->position;
@@ -45,6 +46,9 @@ Cost MoveTwoClientsReversed::evaluate(Node *U,
         auto const weightDiff = U->route->weightBetween(posU, posU + 1);
         auto const volumeDiff = U->route->volumeBetween(posU, posU + 1);
         auto const salvageDiff = U->route->salvageBetween(posU, posU + 1);
+        auto const storeCountU = U->route->storesBetween(posU, posU + 1);
+        auto const storeCountV = V->route->storesBetween(posV, posV + 1);
+        auto const storeDiff = storeCountU - storeCountV;
 
         deltaCost += costEvaluator.weightPenalty(U->route->weight() - weightDiff,
                                                data.weightCapacity());
@@ -52,12 +56,16 @@ Cost MoveTwoClientsReversed::evaluate(Node *U,
                                                data.volumeCapacity());
         deltaCost += costEvaluator.salvagePenalty(U->route->salvage() - salvageDiff,
                                                data.salvageCapacity());
+        deltaCost += costEvaluator.storesPenalty(U->route->storeCount() - storeDiff,
+                                               data.routeStoreLimit());
         deltaCost -= costEvaluator.weightPenalty(U->route->weight(),
                                                data.weightCapacity());
         deltaCost -= costEvaluator.volumePenalty(U->route->volume(),
                                                data.volumeCapacity());
         deltaCost -= costEvaluator.salvagePenalty(U->route->salvage(),
                                                data.salvageCapacity());
+        deltaCost -= costEvaluator.storesPenalty(U->route->storeCount(),
+                                               data.routeStoreLimit());
 
         if (deltaCost >= 0)    // if delta cost of just U's route is not enough
             return deltaCost;  // even without V, the move will never be good
@@ -68,12 +76,16 @@ Cost MoveTwoClientsReversed::evaluate(Node *U,
                                                data.volumeCapacity());
         deltaCost += costEvaluator.salvagePenalty(V->route->salvage() + salvageDiff,
                                                data.salvageCapacity());
+        deltaCost += costEvaluator.storesPenalty(V->route->storeCount() + storeDiff, 
+                                               data.routeStoreLimit());
         deltaCost -= costEvaluator.weightPenalty(V->route->weight(),
                                                data.weightCapacity());
         deltaCost -= costEvaluator.volumePenalty(V->route->volume(),
                                                data.volumeCapacity());
         deltaCost -= costEvaluator.salvagePenalty(V->route->salvage(),
                                                data.salvageCapacity());
+        deltaCost -= costEvaluator.storesPenalty(V->route->storeCount(), 
+                                               data.routeStoreLimit());
 
         auto vTWS = TWS::merge(
             data.durationMatrix(), V->twBefore, n(U)->tw, U->tw, n(V)->twAfter);
@@ -117,34 +129,34 @@ Cost MoveTwoClientsReversed::evaluate(Node *U,
     return deltaCost;
 }
 
-bool MoveTwoClientsReversed::checkSalvageSequenceConstraint(Node *U, Node *V) const
-{
-    // These sequences should violate the constraint
-    // S-B
-    // S-D
-    // B-B
-    // B-D
-    bool uIsClientDelivery = (data.client(U->client).demandWeight || data.client(U->client).demandVolume);
-    bool uIsClientSalvage = (data.client(U->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
-    bool uIsBoth = uIsClientDelivery && uIsClientSalvage;
-
-    bool vIsClientDelivery = (data.client(V->client).demandWeight || data.client(V->client).demandVolume);
-    bool vIsClientSalvage = (data.client(V->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
-    bool vIsBoth = vIsClientDelivery && vIsClientSalvage;
-
-    bool nextUClientDelivery = (data.client(n(U)->client).demandWeight || data.client(n(U)->client).demandVolume);
-    bool nextVClientDelivery = (data.client(n(V)->client).demandWeight || data.client(n(V)->client).demandVolume);
-
-    // S-B or S-D
-    if (uIsClientSalvage && !uIsBoth && ((vIsClientDelivery || vIsBoth) || nextVClientDelivery))
-        return true;
-
-    // B-B or B-D
-    if (uIsBoth && ((vIsBoth || vIsClientDelivery) || nextUClientDelivery))
-        return true;
-
-    return false;
-}
+//bool MoveTwoClientsReversed::checkSalvageSequenceConstraint(Node *U, Node *V) const
+//{
+//    // These sequences should violate the constraint
+//    // S-B
+//    // S-D
+//    // B-B
+//    // B-D
+//    bool uIsClientDelivery = (data.client(U->client).demandWeight || data.client(U->client).demandVolume);
+//    bool uIsClientSalvage = (data.client(U->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
+//    bool uIsBoth = uIsClientDelivery && uIsClientSalvage;
+//
+//    bool vIsClientDelivery = (data.client(V->client).demandWeight || data.client(V->client).demandVolume);
+//    bool vIsClientSalvage = (data.client(V->client).demandSalvage != Measure<MeasureType::SALVAGE>(0));
+//    bool vIsBoth = vIsClientDelivery && vIsClientSalvage;
+//
+//    bool nextUClientDelivery = (data.client(n(U)->client).demandWeight || data.client(n(U)->client).demandVolume);
+//    bool nextVClientDelivery = (data.client(n(V)->client).demandWeight || data.client(n(V)->client).demandVolume);
+//
+//    // S-B or S-D
+//    if (uIsClientSalvage && !uIsBoth && ((vIsClientDelivery || vIsBoth) || nextVClientDelivery))
+//        return true;
+//
+//    // B-B or B-D
+//    if (uIsBoth && ((vIsBoth || vIsClientDelivery) || nextUClientDelivery))
+//        return true;
+//
+//    return false;
+//}
 
 void MoveTwoClientsReversed::apply(Node *U, Node *V) const
 {

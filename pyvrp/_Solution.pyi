@@ -16,6 +16,7 @@ class Route:
     def has_excess_weight(self) -> bool: ...
     def has_excess_volume(self) -> bool: ...
     def has_excess_salvage(self) -> bool: ...
+    def has_excess_stores(self) -> bool: ...
     def has_time_warp(self) -> bool: ...
     def demandWeight(self) -> int:
         """
@@ -28,6 +29,10 @@ class Route:
     def demandSalvage(self) -> int:
         """
         Total salvage demand on this route.
+        """
+    def routeStores(self) -> int:
+        """
+        Total stores in route.
         """
     def demand(self) -> int:
         """
@@ -44,6 +49,10 @@ class Route:
     def excess_salvage(self) -> int:
         """
         Number of salvage stops above the salvage capacity.
+        """
+    def excess_stores(self) -> int:
+        """
+        Number of stores above the stores limit.
         """
     def distance(self) -> int:
         """
@@ -173,6 +182,15 @@ class Solution:
         bool
             True if the solution is not salvage feasible, False otherwise.
         """
+    def has_excess_stores(self) -> bool:
+        """
+        Returns whether this solution violates the stores limit constraint
+        
+        Returns
+        -------
+        bool
+            True if the solution is not stores feasible, False otherwise.
+        """
     def has_time_warp(self) -> bool:
         """
         Returns whether this solution violates time window constraints.
@@ -218,6 +236,15 @@ class Solution:
         -------
         int
             Total nonterminal salvage over all routes.
+        """
+    def excess_stores(self) -> int:
+        """
+        Returns the total excess stores over all routes.
+
+        Returns
+        -------
+        int
+            Total excess stores over all routes
         """
     def time_warp(self) -> int:
         """

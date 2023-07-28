@@ -26,6 +26,8 @@ PYBIND11_MODULE(_Solution, m)
              [](Solution::Route const &route) { return route.demandVolume().get(); })
         .def("demandSalvage",
              [](Solution::Route const &route) { return route.demandSalvage().get(); })
+        .def("routeStores",
+             [](Solution::Route const &route) { return route.routeStores().get(); })
         .def("excess_weight",
              [](Solution::Route const &route) {
                  return route.excessWeight().get();
@@ -37,6 +39,10 @@ PYBIND11_MODULE(_Solution, m)
         .def("excess_salvage",
              [](Solution::Route const &route) {
                  return route.excessSalvage().get();
+             })
+        .def("excess_stores",
+             [](Solution::Route const &route) {
+                 return route.excessStores().get();
              })
         .def(
             "duration",
@@ -120,6 +126,8 @@ PYBIND11_MODULE(_Solution, m)
              [](Solution const &sol) { return sol.excessVolume().get(); })
         .def("excess_salvage",
              [](Solution const &sol) { return sol.excessSalvage().get(); })
+        .def("excess_stores",
+             [](Solution const &sol) { return sol.excessStores().get(); })
         .def("time_warp",
              [](Solution const &sol) { return sol.timeWarp().get(); })
         .def("prizes", [](Solution const &sol) { return sol.prizes().get(); })

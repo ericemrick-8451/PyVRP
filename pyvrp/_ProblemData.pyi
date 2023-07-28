@@ -18,6 +18,10 @@ class Client:
         The volume amount this client's demanding. Default 0.
     salvage_demand
 	1 if salvage pickup is required. Default 0.
+    client_order 
+	index to the client's order. Default -1.
+    client_store
+	index to the client's store. Default -1.
     service_duration
         This client's service duration, that is, the amount of time we need to
         visit the client for. Service should start (but not necessarily end)
@@ -38,6 +42,8 @@ class Client:
     weight_demand: int
     volume_demand: int
     salvage_demand: int
+    client_order: int
+    client_store: int
     service_duration: int
     tw_early: int
     tw_late: int
@@ -51,6 +57,8 @@ class Client:
         weight_demand: int = 0,
         volume_demand: int = 0,
         salvage_demand: int = 0,
+        client_order: int = -1,
+        client_store: int = -1,
         service_duration: int = 0,
         tw_early: int = 0,
         tw_late: int = 0,
@@ -77,6 +85,8 @@ class ProblemData:
         Homogenous vehicle volume capacity for all vehicles in the problem instance.
     salvage_cap
         Homogenous route nonterminal pickup stops capacity for all routes in the problem instance.
+    store_lim 
+        Limit on the number of stores that can be associated with a route.
     duration_matrix
         A matrix that gives the travel times between clients (and the depot at
         index 0).
@@ -88,6 +98,7 @@ class ProblemData:
         num_vehicles: int,
         vehicle_cap: int,
         salvage_cap: int,
+        store_lim: int,
         distance_matrix: List[List[int]],
         duration_matrix: List[List[int]],
     ): ...
@@ -209,3 +220,13 @@ class ProblemData:
         -------
         int
             Non-terminal salvage pickup capacity of each route in the instance.
+    @property
+    def store_limit(self) -> int:
+        """
+        Returns the maximum number of stores permitted on a single route in this 
+        problem data instance.
+
+        Returns
+        -------
+        int
+            Number of stores

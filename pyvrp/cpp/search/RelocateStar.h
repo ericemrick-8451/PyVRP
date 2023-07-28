@@ -20,8 +20,8 @@ class RelocateStar : public LocalSearchOperator<Route>
 
     Exchange<1, 0> relocate;
     Move move;
-    bool checkSalvageSequenceConstraint(Node *U,
-                                        Node *V) const;
+//    bool checkSalvageSequenceConstraint(Node *U,
+//                                        Node *V) const;
 
 public:
     Cost

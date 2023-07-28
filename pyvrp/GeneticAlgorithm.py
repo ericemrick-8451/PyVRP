@@ -134,12 +134,16 @@ class GeneticAlgorithm:
 
             curr_best = self._cost_evaluator.cost(self._best)
 
+            print("BEFORE SELECT")
             parents = self._pop.select(self._rng, self._cost_evaluator)
+            print("BEFORE CROSSOVER")
             offspring = self._op(
                 parents, self._data, self._cost_evaluator, self._rng
             )
+            print("BEFORE LOCALSEARCH")
             self._search(offspring)
 
+            print("BEFORE COSTEVALUATOR") 
             new_best = self._cost_evaluator.cost(self._best)
 
             if new_best < curr_best:
@@ -147,11 +151,12 @@ class GeneticAlgorithm:
             else:
                 iters_no_improvement += 1
 
+            print("BEFORE COLLECT")
             if self._params.collect_statistics:
                 stats.collect_from(self._pop, self._cost_evaluator)
 
         end = time.perf_counter() - start
-        return Result(self._best, stats, iters, end)
+        return Result(self._best, stats, iters, end, self._data)
 
     def _search(self, sol: Solution):
         def is_new_best(sol):

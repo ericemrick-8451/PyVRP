@@ -21,7 +21,9 @@ enum class MeasureType
     DURATION,
     COST,
     LOAD,
-    SALVAGE
+    SALVAGE,
+    ORDER,
+    STORE
 };
 
 // Forward declaration so we can define the relevant type aliases early.
@@ -34,6 +36,8 @@ using Distance = Measure<MeasureType::DIST>;
 using Duration = Measure<MeasureType::DURATION>;
 using Load = Measure<MeasureType::LOAD>;
 using Salvage = Measure<MeasureType::SALVAGE>;
+using Order = Measure<MeasureType::ORDER>;
+using Store = Measure<MeasureType::STORE>;
 
 //
 //                 EVERYTHING BELOW THIS IS IMPLEMENTATION

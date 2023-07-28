@@ -100,13 +100,21 @@ def read(
     if "salvage_demand" not in instance:
         raise ValueError("File should contain salvage demands")
 
+    if "suborder_to_order" not in instance:
+        raise ValueError("File should contain unit to client mappings")
+
+    if "order_to_store" not in instance:
+        raise ValueError("File should contain unit to client to client group mappings")
+
     depots: np.ndarray = instance.get("depot", np.array([0]))
     num_vehicles: int = instance.get("vehicles", dimension - 1)
     weight_capacity: int = instance.get("weight_capacity", _INT_MAX)
     volume_capacity: int = instance.get("volume_capacity", _INT_MAX)
     salvage_capacity: int = instance.get("salvage_capacity", _INT_MAX)
+    stop_limit: int = instance.get("stop_limit", _INT_MAX)
+    client_route_limit: int = instance.get("client_route_limit", _INT_MAX)
 
-    distances: np.ndarray = round_func(instance["edge_weight"])
+    distances: np.ndarray = round_func(instance["edge_weight"]/10).astype(int)
 
     if "weight_demand" in instance:
         weight_demands: np.ndarray = instance["weight_demand"]
@@ -122,6 +130,18 @@ def read(
         salvage_demands: np.ndarray = instance["salvage_demand"]
     else:
         salvage_demands = np.zeros(dimension, dtype=int)
+
+    if "suborder_to_order" in instance:
+        print("FOUND SUBORDER SECTION")
+        suborder_to_order_map: np.ndarray = instance["suborder_to_order"]
+    else:
+        suborder_to_order_map = np.zeros(dimension, dtype=int)
+
+    if "order_to_store" in instance:
+        print("ORDER SECTION")
+        order_to_store_map: np.ndarray = instance["order_to_store"]
+    else:
+        order_to_store_map = np.zeros(dimension, dtype=int)
 
     if "node_coord" in instance:
         coords: np.ndarray = round_func(instance["node_coord"])
@@ -184,7 +204,9 @@ def read(
             coords[idx][1],  # y
             weight_demands[idx],
             volume_demands[idx],
-            salvage_demands[idx],
+            salvage_demands[order_to_store_map[suborder_to_order_map[idx-1]]],
+            suborder_to_order_map[idx-1],
+            order_to_store_map[suborder_to_order_map[idx-1]]+1,
             service_times[idx],
             time_windows[idx][0],  # TW early
             time_windows[idx][1],  # TW late
@@ -207,6 +229,8 @@ def read(
         weight_capacity,
         volume_capacity,
         salvage_capacity,
+        client_route_limit,
+        stop_limit,
         distances,
         durations
     )

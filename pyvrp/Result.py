@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from .Statistics import Statistics
 from ._CostEvaluator import CostEvaluator
 from ._Solution import Solution
+from ._ProblemData import ProblemData
 
 
 @dataclass
@@ -23,6 +24,8 @@ class Result:
         Number of iterations performed by the genetic algorithm.
     runtime
         Total runtime of the main genetic algorithm loop.
+    data
+        Problem data instance. Need this to aggregate output appropriately.
 
     Raises
     ------
@@ -34,6 +37,7 @@ class Result:
     stats: Statistics
     num_iterations: int
     runtime: float
+    data: ProblemData
 
     def __post_init__(self):
         if self.num_iterations < 0:
@@ -103,6 +107,16 @@ class Result:
 # 
 #         return "\n".join(summary)
 
+    def store_type_to_str(self, demandSalvage: int, demandWeight: int) -> str:
+        if demandSalvage:
+            if demandWeight:
+                return 'B'
+            else:
+                return 'S'
+        else:
+            if demandWeight:
+                return 'D'
+
     def __str__(self) -> str:
         obj_str = f"{self.cost():.2f}" if self.is_feasible() else "INFEASIBLE"
         summary = [
@@ -117,22 +131,66 @@ class Result:
             "Routes",
             "------",
         ]
+        tot_dist = 0
 
         for idx, route in enumerate(self.best.get_routes(), 1):
             if route:
-                route_info = [f"Route {idx:>2}: {route}"]
-                route_info.append(f"Excess weight: {route.excess_weight()}")
-                route_info.append(f"Excess volume: {route.excess_volume()}")
-                route_info.append(f"Excess salvage: {route.excess_salvage()}")
-                # route_info.append(f"Excess salvage sequence: {route.excess_salvage_sequence()}")
-                route_info.append(f"Demand Weight: {route.demandWeight()}")
-                route_info.append(f"Demand Volume: {route.demandVolume()}")
+                route_info = [f"Route {idx:>2}: "]
+                for r in route:
+                    client_data = self.data.client(r)
+                    store_type_str = self.store_type_to_str(client_data.demandSalvage, client_data.demandWeight)
+                    route_info.append(f"{store_type_str}-{client_data.clientStore}-{client_data.clientOrder}")
                 route_info.append(f"Demand Salvage: {route.demandSalvage()}")
-#                route_info.append(f"hasSalvageBeforeDelivery: {route.has_salvage_before_deliver()}")
-
+                route_info.append(f"Route Stores: {route.routeStores()}")
+                route_info.append(f"Distance: {route.distance()}")
+                tot_dist += route.distance()
+                route_info.append(f"Tot Distance: {tot_dist}")
+                route_info.append(f"E salvage: {route.excess_salvage()}")
+                route_info.append(f"E stores: {route.excess_stores()}")
+                route_info.append(f"Store limit: {self.data.route_store_limit}")
+            
                 summary.append(", ".join(route_info))
 
         return "\n".join(summary)
+
+
+#    def __str__(self) -> str:
+#        print("Data.client(25).clientOrder: ", self.data.client(25).clientOrder)
+#        print("Data.client(25).clientStore: ", self.data.client(25).clientStore)
+#        obj_str = f"{self.cost():.2f}" if self.is_feasible() else "INFEASIBLE"
+#        summary = [
+#            "Solution results",
+#            "================",
+#            f"    # routes: {self.best.num_routes()}",
+#            f"   # clients: {self.best.num_clients()}",
+#            f"   objective: {obj_str}",
+#            f"# iterations: {self.num_iterations}",
+#            f"    run-time: {self.runtime:.2f} seconds",
+#            "",
+#            "Routes",
+#            "------",
+#        ]
+#        tot_dist = 0
+#        for idx, route in enumerate(self.best.get_routes(), 1):
+#            if route:
+#                route_info = [f"Route {idx:>2}: " + ', '.join([str(self.data.client(r).clientStore) + "-" + str(self.data.client(r).clientOrder) for r in route])]
+#                # route_info = [f"Route {idx:>2}: " + ', '.join([str(self.data.client(r).clientOrder) + "-" + str(self.data.client(r).clientStore) for r in route])]
+#                # route_info = [f"Route {idx:>2}: {route}"]
+#                # route_info.append(f"Excess weight: {route.excess_weight()}")
+#                # route_info.append(f"Excess volume: {route.excess_volume()}")
+#                # route_info.append(f"Excess salvage: {route.excess_salvage()}")
+#                # route_info.append(f"Demand Weight: {route.demandWeight()}")
+#                # route_info.append(f"Demand Volume: {route.demandVolume()}")
+#                route_info.append(f"Demand Salvage: {route.demandSalvage()}")
+#                route_info.append(f"Route Stores: {route.routeStores()}")
+#                route_info.append(f"Distance: {route.distance()}")
+#                tot_dist += route.distance()
+#                route_info.append(f"Tot Distance: {tot_dist}")
+##                route_info.append(f"hasSalvageBeforeDelivery: {route.has_salvage_before_deliver()}")
+#
+#                summary.append(", ".join(route_info))
+#
+#        return "\n".join(summary)
 
 
 #  public:

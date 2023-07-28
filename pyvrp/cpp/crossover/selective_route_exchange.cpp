@@ -238,6 +238,7 @@ Solution selectiveRouteExchange(
 
     auto const cost1 = costEvaluator.penalisedCost(sol1);
     auto const cost2 = costEvaluator.penalisedCost(sol2);
+    std::cout << "Cost1: " << cost1 <<  " Cost2: " << cost2 << std::endl;
 
     return cost1 < cost2 ? sol1 : sol2;
 }

@@ -8,12 +8,14 @@ namespace py = pybind11;
 PYBIND11_MODULE(_ProblemData, m)
 {
     py::class_<ProblemData::Client>(m, "Client")
-        .def(py::init<Value, Value, Value, Value, Value, Value, Value, Value, Value, bool>(),
+        .def(py::init<Value, Value, Value, Value, Value, Value, Value, Value, Value, Value, Value, bool>(),
              py::arg("x"),
              py::arg("y"),
              py::arg("demandWeight") = 0,
              py::arg("demandVolume") = 0,
              py::arg("demandSalvage") = 0,
+             py::arg("clientOrder") = -1,
+             py::arg("clientStore") = -1,
              py::arg("service_duration") = 0,
              py::arg("tw_early") = 0,
              py::arg("tw_late") = 0,
@@ -36,6 +38,14 @@ PYBIND11_MODULE(_ProblemData, m)
         .def_property_readonly("demandSalvage",
                                [](ProblemData::Client const &client) {
                                    return client.demandSalvage.get();
+                               })
+        .def_property_readonly("clientOrder",
+                               [](ProblemData::Client const &client) {
+                                   return client.clientOrder.get();
+                               })
+        .def_property_readonly("clientStore",
+                               [](ProblemData::Client const &client) {
+                                   return client.clientStore.get();
                                })
         .def_property_readonly("service_duration",
                                [](ProblemData::Client const &client) {
@@ -61,6 +71,8 @@ PYBIND11_MODULE(_ProblemData, m)
                          Value weightCap,
                          Value volumeCap,
                          Value salvageCap,
+                         Value orderRouteLim,
+                         Value routeStoreLim,
                          std::vector<std::vector<Value>> const &dist,
                          std::vector<std::vector<Value>> const &dur) {
                  Matrix<Distance> distMat(clients.size());
@@ -74,13 +86,15 @@ PYBIND11_MODULE(_ProblemData, m)
                      }
 
                  return ProblemData(
-                     clients, numVehicles, weightCap, volumeCap, salvageCap, distMat, durMat);
+                     clients, numVehicles, weightCap, volumeCap, salvageCap, orderRouteLim, routeStoreLim, distMat, durMat);
              }),
              py::arg("clients"),
              py::arg("num_vehicles"),
              py::arg("weight_cap"),
              py::arg("volume_cap"),
              py::arg("salvage_cap"),
+             py::arg("order_route_lim"),
+             py::arg("route_store_lim"),
              py::arg("distance_matrix"),
              py::arg("duration_matrix"))
         .def_property_readonly("num_clients", &ProblemData::numClients)
@@ -96,6 +110,14 @@ PYBIND11_MODULE(_ProblemData, m)
         .def_property_readonly("salvage_capacity",
                                [](ProblemData const &data) {
                                    return data.salvageCapacity().get();
+                               })
+        .def_property_readonly("order_route_limit",
+                               [](ProblemData const &data) {
+                                   return data.orderRouteLimit().get();
+                               })
+        .def_property_readonly("route_store_limit",
+                               [](ProblemData const &data) {
+                                   return data.routeStoreLimit().get();
                                })
         .def("client",
              &ProblemData::client,

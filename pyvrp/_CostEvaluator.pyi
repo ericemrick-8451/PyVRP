@@ -17,8 +17,8 @@ class CostEvaluator:
         The penalty for each unit of excess volume load over the vehicle volume capacity.
     salvage_capacity_penalty
         The penalty for each nonterminal salvage pickup.
-    salvage_sequence_penalty
-        The penalty for each nonterminal salvage pickup.
+    stores_penalty
+        The penalty for each excess salvage store in route.
     tw_penalty
         The penalty for each unit of time warp.
     """
@@ -28,11 +28,13 @@ class CostEvaluator:
         weight_capacity_penalty: int = 0, 
         volume_capacity_penalty: int = 0, 
         salvage_penalty: int = 0, 
+        stores_penalty: int = 0, 
         tw_penalty: int = 0
     ) -> None: ...
     def weight_penalty(self, weight: int, weight_capacity: int) -> int: ...
     def volume_penalty(self, volume: int, volume_capacity: int) -> int: ...
     def salvage_penalty(self, salvage: int, salvage_capacity: int) -> int: ...
+    def stores_penalty(self, stores: int, stores_limit: int) -> int: ...
     def tw_penalty(self, time_warp: int) -> int: ...
     def penalised_cost(self, solution: Solution) -> int: ...
     def cost(self, solution: Solution) -> int:

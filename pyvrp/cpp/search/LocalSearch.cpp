@@ -30,11 +30,13 @@ Solution LocalSearch::search(Solution &solution,
 
     for (int step = 0; !searchCompleted; ++step)
     {
+        std::cout << "Outer: " << step << std::endl;
         searchCompleted = true;
 
         // Node operators are evaluated at neighbouring (U, V) pairs.
         for (auto const uClient : orderNodes)
         {
+            std::cout << "Inner UClient: " << uClient << std::endl;
             auto *U = &clients[uClient];
 
             auto const lastTestedNode = lastTestedNodes[uClient];
@@ -47,6 +49,7 @@ Solution LocalSearch::search(Solution &solution,
             // we are already randomizing the nodes U.
             for (auto const vClient : neighbours[uClient])
             {
+                std::cout << "Inner VClient: " << vClient << std::endl;
                 auto *V = &clients[vClient];
 
                 if (!U->route && V->route)             // U might be inserted
@@ -65,7 +68,8 @@ Solution LocalSearch::search(Solution &solution,
                         continue;
                 }
             }
-
+       
+            std::cout << "After Inner VClient" << std::endl;
             if (step > 0)  // empty moves are not tested initially to avoid
             {              // using too many routes.
                 auto pred = [](auto const &route) { return route.empty(); };
@@ -74,6 +78,7 @@ Solution LocalSearch::search(Solution &solution,
                 if (empty == routes.end())
                     continue;
 
+                std::cout << "Route not empty" << std::endl;
                 if (U->route)  // try inserting U into the empty route.
                     applyNodeOps(U, empty->depot, costEvaluator);
                 else  // U is not in the solution, so again try inserting.
@@ -208,12 +213,22 @@ void LocalSearch::maybeInsert(Node *U,
     deltaCost += costEvaluator.salvagePenalty(V->route->salvage() + uClient.demandSalvage,
                                            data.salvageCapacity());
 
+    if (!V->route->containsStore(uClient.clientStore))
+    {
+        deltaCost += costEvaluator.storesPenalty(V->route->stores() + Store(1), data.routeStoreLimit());
+    }
+
     deltaCost
         -= costEvaluator.weightPenalty(V->route->weight(), data.weightCapacity());
     deltaCost
         -= costEvaluator.volumePenalty(V->route->volume(), data.volumeCapacity());
     deltaCost
         -= costEvaluator.salvagePenalty(V->route->salvage(), data.salvageCapacity());
+
+    if (!V->route->containsStore(uClient.clientStore))
+    {
+        deltaCost -= costEvaluator.storesPenalty(V->route->stores(), data.routeStoreLimit());
+    }
 
     // If this is true, adding U cannot decrease time warp in V's route enough
     // to offset the deltaCost.
@@ -234,14 +249,18 @@ void LocalSearch::maybeInsert(Node *U,
 }
 
 void LocalSearch::maybeRemove(Node *U, CostEvaluator const &costEvaluator)
-{
+{                   
     assert(U->route);
 
     Distance const deltaDist = data.dist(p(U)->client, n(U)->client)
                                - data.dist(p(U)->client, U->client)
                                - data.dist(U->client, n(U)->client);
-
+                    
     auto const &uClient = data.client(U->client);
+
+    Store numStores = U->route->storeCount();
+    bool foundStore = U->route->containsStore(uClient.clientStore);
+
     Cost deltaCost = static_cast<Cost>(deltaDist) + uClient.prize;
 
     deltaCost += costEvaluator.weightPenalty(U->route->weight() - uClient.demandWeight,
@@ -250,15 +269,22 @@ void LocalSearch::maybeRemove(Node *U, CostEvaluator const &costEvaluator)
                                            data.volumeCapacity());
     deltaCost += costEvaluator.salvagePenalty(U->route->salvage() - uClient.demandSalvage,
                                            data.salvageCapacity());
-    deltaCost
-        -= costEvaluator.weightPenalty(U->route->weight(), data.weightCapacity());
-    deltaCost
-        -= costEvaluator.volumePenalty(U->route->volume(), data.volumeCapacity());
-    deltaCost
-        -= costEvaluator.salvagePenalty(U->route->salvage(), data.salvageCapacity());
+    
+    if (foundStore)
+    {
+        deltaCost += costEvaluator.storesPenalty(numStores - Store(1), data.routeStoreLimit());
+    }
 
-    auto uTWS
-        = TWS::merge(data.durationMatrix(), p(U)->twBefore, n(U)->twAfter);
+    deltaCost -= costEvaluator.weightPenalty(U->route->weight(), data.weightCapacity());
+    deltaCost -= costEvaluator.volumePenalty(U->route->volume(), data.volumeCapacity());
+    deltaCost -= costEvaluator.salvagePenalty(U->route->salvage(), data.salvageCapacity());
+
+    if (foundStore)
+    {
+        deltaCost += costEvaluator.storesPenalty(numStores, data.routeStoreLimit());
+    }
+    
+    auto uTWS = TWS::merge(data.durationMatrix(), p(U)->twBefore, n(U)->twAfter);
 
     deltaCost += costEvaluator.twPenalty(uTWS.totalTimeWarp());
     deltaCost -= costEvaluator.twPenalty(U->route->timeWarp());
@@ -270,6 +296,55 @@ void LocalSearch::maybeRemove(Node *U, CostEvaluator const &costEvaluator)
         update(route, route);
     }
 }
+
+
+//void LocalSearch::maybeRemove(Node *U, CostEvaluator const &costEvaluator)
+//{
+//    assert(U->route);
+//
+//    Distance const deltaDist = data.dist(p(U)->client, n(U)->client)
+//                               - data.dist(p(U)->client, U->client)
+//                               - data.dist(U->client, n(U)->client);
+//
+//    auto const &uClient = data.client(U->client);
+//    Cost deltaCost = static_cast<Cost>(deltaDist) + uClient.prize;
+//
+//    deltaCost += costEvaluator.weightPenalty(U->route->weight() - uClient.demandWeight,
+//                                           data.weightCapacity());
+//    deltaCost += costEvaluator.volumePenalty(U->route->volume() - uClient.demandVolume,
+//                                           data.volumeCapacity());
+//    deltaCost += costEvaluator.salvagePenalty(U->route->salvage() - uClient.demandSalvage,
+//                                           data.salvageCapacity());
+//
+//    if (U->route->storeCount(uClient.clientStore) == 1) {
+//        deltaCost -= costEvaluator.storesPenalty(U->route->stores() - Store(1), data.routeStoreLimit());
+//    }
+//
+//    deltaCost
+//        -= costEvaluator.weightPenalty(U->route->weight(), data.weightCapacity());
+//    deltaCost
+//        -= costEvaluator.volumePenalty(U->route->volume(), data.volumeCapacity());
+//    deltaCost
+//        -= costEvaluator.salvagePenalty(U->route->salvage(), data.salvageCapacity());
+//
+//    if (!V->route->containsStore(uClient.clientStore))
+//    {
+//        deltaCost += costEvaluator.storesPenalty(U->route->stores() + Store(1), data.routeStoreLimit());
+//    }  
+//
+//    auto uTWS
+//        = TWS::merge(data.durationMatrix(), p(U)->twBefore, n(U)->twAfter);
+//
+//    deltaCost += costEvaluator.twPenalty(uTWS.totalTimeWarp());
+//    deltaCost -= costEvaluator.twPenalty(U->route->timeWarp());
+//
+//    if (deltaCost < 0)
+//    {
+//        auto *route = U->route;  // after U->remove(), U->route is a nullptr
+//        U->remove();
+//        update(route, route);
+//    }
+//}
 
 void LocalSearch::update(Route *U, Route *V)
 {

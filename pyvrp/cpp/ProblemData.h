@@ -18,6 +18,8 @@ public:
         Load const demandWeight;
         Load const demandVolume;
         Salvage const demandSalvage;
+        Order const clientOrder; // Index of associated order
+        Store const clientStore; // Index of associated delivery stop (store)
         Duration const serviceDuration;
         Duration const twEarly;      // Earliest possible start of service
         Duration const twLate;       // Latest possible start of service
@@ -29,6 +31,8 @@ public:
                Load demandWeight = 0,
                Load demandVolume = 0,
                Salvage demandSalvage = 0,
+               Order clientOrder = -1,
+               Store clientStore = -1,
                Duration serviceDuration = 0,
                Duration twEarly = 0,
                Duration twLate = 0,
@@ -47,6 +51,8 @@ private:
     Load const weightCapacity_;
     Load const volumeCapacity_;
     Salvage const salvageCapacity_;
+    Order const orderRouteLimit_;
+    Store const routeStoreLimit_;
 
 public:
     /**
@@ -118,24 +124,38 @@ public:
      */
     [[nodiscard]] Salvage salvageCapacity() const;
 
+    /**        
+     * @return Maximum number of stops per route.
+     */        
+    [[nodiscard]] Store routeStoreLimit() const;
+
+    /**        
+     * @return Maximum number of routes a client can participate in.
+     */        
+    [[nodiscard]] Order orderRouteLimit() const;
+
     /**
      * Constructs a ProblemData object with the given data. Assumes the list of
      * clients contains the depot, such that each vector is one longer than the
      * number of clients.
      *
-     * @param clients      List of clients (including depot at index 0).
-     * @param numVehicles  Number of vehicles.
-     * @param weightCap   Vehicle weight capacity.
-     * @param volumeCap   Vehicle volume capacity.
-     * @param salvageCap   Route nonterminal salvage capacity.
-     * @param distMat      Distance matrix.
-     * @param durMat       Duration matrix.
+     * @param clients              List of clients (including depot at index 0).
+     * @param numVehicles          Number of vehicles.
+     * @param weightCap            Vehicle weight capacity.
+     * @param volumeCap            Vehicle volume capacity.
+     * @param salvageCap           Route nonterminal salvage capacity.
+     * @param orderRouteLim        Max number of routes across which an order can appear.
+     * @param routeStoreLim        Max number of stores per route.
+     * @param distMat              Distance matrix.
+     * @param durMat               Duration matrix.
      */
     ProblemData(std::vector<Client> const &clients,
                 size_t numVehicles,
                 Load weightCap,
                 Load volumeCap,
                 Salvage salvageCap,
+                Order const orderRouteLim,
+                Store const routeStoreLim,
                 Matrix<Distance> const distMat,
                 Matrix<Duration> const durMat);
 };

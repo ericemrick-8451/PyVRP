@@ -21,10 +21,12 @@ class Route
     Load weight_;            // Current route weight load.
     Load volume_;            // Current route volume load.
     Salvage salvage_;        // Current route salvage demand.
+    Store stores_;        // Current route stores demand.
     bool isWeightFeasible_;  // Whether current weight load is feasible.
     bool isVolumeFeasible_;  // Whether current volume load is feasible.
     bool isSalvageCapacityFeasible_;  // Whether current salvage demand is salvage capacity feasible.
-    bool isSalvageSequenceFeasible_;  // Whether current route sequence salvage sequence feasible.
+    bool isStoresLimitFeasible_;  // Whether current number of stores on route is feasible.
+    // bool isSalvageSequenceFeasible_;  // Whether current route sequence salvage sequence feasible.
 
     Duration timeWarp_;        // Current route time warp.
     bool isTimeWarpFeasible_;  // Whether current time warp is feasible.
@@ -44,6 +46,19 @@ class Route
 public:           // TODO make fields private
     int idx;      // Route index
     Node *depot;  // Pointer to the associated depot
+
+    /**
+     * Checks if a given store exists in the route.
+     *
+     * @param index of the store to check.
+     * @return true if the store exists in the route, false otherwise.
+     */
+    [[nodiscard]] bool containsStore(Store store_index) const;
+
+    /**
+     * Returns number of unique stores in route.
+     */
+    [[nodiscard]] Store storeCount() const;
 
     /**
      * @return The client or depot node at the given position.
@@ -79,11 +94,11 @@ public:           // TODO make fields private
     [[nodiscard]] inline bool hasExcessSalvage() const;
 
     /**
-     * Determines whether this route is salvage-feasible.
+     * Determines whether this route is stores-feasible.
      *
-     * @return true if the route violates the salvage sequence constraint
+     * @return true if the route exceeds the stores limit, false otherwise.
      */
-    [[nodiscard]] inline bool hasSalvageBeforeDelivery() const;
+    [[nodiscard]] inline bool hasExcessStores() const;
 
     /**
      * Determines whether this route is time-feasible.
@@ -106,6 +121,11 @@ public:           // TODO make fields private
      * @return Total salvage demand on this route.
      */
     [[nodiscard]] inline Salvage salvage() const;
+
+    /**
+     * @return Total stores demand on this route.
+     */
+    [[nodiscard]] inline Store stores() const;
 
     /**
      * @return Total time warp on this route.
@@ -149,6 +169,11 @@ public:           // TODO make fields private
     [[nodiscard]] inline Salvage salvageBetween(size_t start, size_t end) const;
 
     /**
+     * Calculates the demand for segment [start, end].
+     */
+    [[nodiscard]] inline Store storesBetween(size_t start, size_t end) const;
+
+    /**
      * Tests if this route overlaps with the other route, that is, whether
      * their circle sectors overlap with a given tolerance.
      */
@@ -164,7 +189,7 @@ public:           // TODO make fields private
     Route(ProblemData const &data);
 };
 
-bool Route::isFeasible() const { return !hasExcessWeight() && !hasExcessVolume() && !hasExcessSalvage() && !hasSalvageBeforeDelivery() && !hasTimeWarp(); }
+bool Route::isFeasible() const { return !hasExcessWeight() && !hasExcessVolume() && !hasExcessSalvage() && !hasExcessStores() && !hasTimeWarp(); }
 
 bool Route::hasExcessWeight() const { return !isWeightFeasible_; }
 
@@ -172,7 +197,7 @@ bool Route::hasExcessVolume() const { return !isVolumeFeasible_; }
 
 bool Route::hasExcessSalvage() const { return !isSalvageCapacityFeasible_; }
 
-bool Route::hasSalvageBeforeDelivery() const { return !isSalvageSequenceFeasible_; }
+bool Route::hasExcessStores() const { return !isStoresLimitFeasible_; }
 
 bool Route::hasTimeWarp() const
 {
@@ -194,6 +219,8 @@ Load Route::weight() const { return weight_; }
 Load Route::volume() const { return volume_; }
 
 Salvage Route::salvage() const { return salvage_; }
+
+Store Route::stores() const { return stores_; }
 
 Duration Route::timeWarp() const { return timeWarp_; }
 
@@ -269,6 +296,29 @@ Salvage Route::salvageBetween(size_t start, size_t end) const
     assert(startSalvage <= endSalvage);
      
     return endSalvage - startSalvage + atStart;
+}
+
+Store Route::storesBetween(size_t start, size_t end) const
+{   
+    assert(start <= end && end <= nodes.size());
+
+    if (start == end) return 0;
+    
+    auto const *startNode = start == 0 ? depot : nodes[start - 1];
+    auto const *endNode = nodes[end - 1];
+    
+    auto const startStores = startNode->cumulatedStores; 
+    auto const endStores = endNode->cumulatedStores;
+    
+    std::cout << "In storesBetween: Start:" << start << " Stores: " << startStores << " End:" << end << " Stores: " << endStores << std::endl;
+    assert(startStores <= endStores);
+
+    Store storeCount = endStores - startStores;
+    if (data.client(startNode->client).clientStore != data.client(endNode->client).clientStore) {
+        storeCount = storeCount + Store(1);
+    }
+
+    return storeCount;
 }
 
 // Outputs a route into a given ostream in CVRPLib format

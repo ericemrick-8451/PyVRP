@@ -10,8 +10,8 @@ class MoveTwoClientsReversed : public LocalSearchOperator<Node>
 {
     using LocalSearchOperator::LocalSearchOperator;
 
-    bool checkSalvageSequenceConstraint(Node *U,
-                                        Node *V) const;
+//    bool checkSalvageSequenceConstraint(Node *U,
+//                                        Node *V) const;
 
 public:
     Cost

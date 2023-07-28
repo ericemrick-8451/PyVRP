@@ -64,6 +64,7 @@ Node* Node::clone() const
     clonedNode->cumulatedWeight = this->cumulatedWeight;
     clonedNode->cumulatedVolume = this->cumulatedVolume;
     clonedNode->cumulatedSalvage = this->cumulatedSalvage;
+    clonedNode->cumulatedStores = this->cumulatedStores;
     clonedNode->cumulatedDistance = this->cumulatedDistance;
     clonedNode->cumulatedReversalDistance = this->cumulatedReversalDistance;
     

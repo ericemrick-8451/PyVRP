@@ -83,7 +83,7 @@ class SwapStar : public LocalSearchOperator<Route>
     inline std::pair<Cost, Node *>
     getBestInsertPoint(Node *U, Node *V, CostEvaluator const &costEvaluator);
 
-    bool checkSalvageSequenceConstraint(Node *U, Node *V) const;
+//    bool checkSalvageSequenceConstraint(Node *U, Node *V) const;
 
     Matrix<ThreeBest> cache;
     Matrix<Cost> removalCosts;

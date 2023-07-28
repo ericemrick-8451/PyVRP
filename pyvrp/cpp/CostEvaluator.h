@@ -12,12 +12,14 @@ class CostEvaluator
     Cost weightCapacityPenalty;
     Cost volumeCapacityPenalty;
     Cost salvageCapacityPenalty;
+    Cost storesLimitPenalty;
     Cost timeWarpPenalty;
 
 public:
     CostEvaluator(Cost weightCapacityPenalty, 
                   Cost volumeCapacityPenalty, 
                   Cost salvageCapacityPenalty, 
+                  Cost storesLimitPenalty,
                   Cost timeWarpPenalty);
 
     /**
@@ -51,6 +53,16 @@ public:
      * Computes the excess salvage capacity penalty for the given route.
      */
     [[nodiscard]] inline Cost salvagePenaltyExcess(Salvage excessSalvage) const;
+
+    /**
+     * Computes the total route stores penalty for the current route.
+     */
+    [[nodiscard]] inline Cost storesPenalty(Store stores, Store storesLimit) const;
+
+    /**
+     * Computes the excess route stores penalty for the given route.
+     */
+    [[nodiscard]] inline Cost storesPenaltyExcess(Store excessStores) const;
 
     /**
      * Computes the time warp penalty for the given time warp.
@@ -115,6 +127,18 @@ Cost CostEvaluator::salvagePenalty(Salvage salvage, Salvage salvageCapacity) con
     Cost penalty = salvagePenaltyExcess(salvage - salvageCapacity);
     return Cost(salvage > salvageCapacity) * penalty;
 }
+
+Cost CostEvaluator::storesPenaltyExcess(Store excessStores) const
+{
+    return static_cast<Cost>(excessStores) * storesLimitPenalty;
+}
+
+Cost CostEvaluator::storesPenalty(Store stores, Store storesLimit) const
+{
+    Cost penalty = storesPenaltyExcess(stores - storesLimit);
+    return Cost(stores > storesLimit) * penalty;
+}
+
 
 Cost CostEvaluator::twPenalty([[maybe_unused]] Duration timeWarp) const
 {

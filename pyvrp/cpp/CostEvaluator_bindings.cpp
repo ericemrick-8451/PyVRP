@@ -10,12 +10,14 @@ PYBIND11_MODULE(_CostEvaluator, m)
         .def(py::init([](unsigned int weightCapacityPenalty, 
                          unsigned int volumeCapacityPenalty, 
                          unsigned int salvageCapacityPenalty, 
+                         unsigned int storesLimitPenalty, 
                          unsigned int twPenalty) {
-                 return CostEvaluator(weightCapacityPenalty, volumeCapacityPenalty, salvageCapacityPenalty, twPenalty);
+                 return CostEvaluator(weightCapacityPenalty, volumeCapacityPenalty, salvageCapacityPenalty, storesLimitPenalty, twPenalty);
              }),
              py::arg("weight_capacity_penalty") = 0,
              py::arg("volume_capacity_penalty") = 0,
              py::arg("salvage_penalty") = 0,
+             py::arg("stores_penalty") = 0,
              py::arg("tw_penalty") = 0)
         .def(
             "load_weight_penalty",
@@ -44,6 +46,15 @@ PYBIND11_MODULE(_CostEvaluator, m)
             },
             py::arg("load_salvage"),
             py::arg("salvage_capacity"))
+        .def(
+            "load_stores_penalty",
+            [](CostEvaluator const &evaluator,
+               Value load_stores,
+               Value stores_limit) {
+                return evaluator.storesPenalty(load_stores, stores_limit).get();
+            },
+            py::arg("load_stores"),
+            py::arg("stores_limit"))
         .def(
             "tw_penalty",
             [](CostEvaluator const &evaluator, Value const timeWarp) {

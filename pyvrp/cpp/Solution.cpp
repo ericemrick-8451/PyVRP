@@ -4,6 +4,7 @@
 #include <fstream>
 #include <numeric>
 #include <sstream>
+#include <set>
 
 using Client = int;
 using Visits = std::vector<Client>;
@@ -25,7 +26,7 @@ void Solution::evaluate(ProblemData const &data)
         excessWeight_ += route.excessWeight();
         excessVolume_ += route.excessVolume();
         excessSalvage_ += route.excessSalvage();
-        // excessSalvageSequence_ += route.excessSalvageSequence();
+        excessStores_ += route.excessStores();
     }
 
     uncollectedPrizes_ = allPrizes - prizes_;
@@ -42,11 +43,12 @@ std::vector<std::pair<Client, Client>> const &Solution::getNeighbours() const
     return neighbours;
 }
 
-bool Solution::isFeasible() const { return !hasExcessWeight() && !hasExcessVolume() && !hasExcessSalvage() && !hasTimeWarp(); }
+bool Solution::isFeasible() const { return !hasExcessWeight() && !hasExcessVolume() && !hasExcessSalvage() && !hasExcessStores() && !hasTimeWarp(); }
 
 bool Solution::hasExcessWeight() const { return excessWeight_ > 0; }
 bool Solution::hasExcessVolume() const { return excessVolume_ > 0; }
 bool Solution::hasExcessSalvage() const { return excessSalvage_ > 0; }
+bool Solution::hasExcessStores() const { return excessStores_ > 0; }
 bool Solution::hasTimeWarp() const { return timeWarp_ > 0; }
 
 Distance Solution::distance() const { return distance_; }
@@ -54,6 +56,7 @@ Distance Solution::distance() const { return distance_; }
 Load Solution::excessWeight() const { return excessWeight_; }
 Load Solution::excessVolume() const { return excessVolume_; }
 Salvage Solution::excessSalvage() const { return excessSalvage_; }
+Store Solution::excessStores() const { return excessStores_; }
 
 Cost Solution::prizes() const { return prizes_; }
 
@@ -79,6 +82,7 @@ bool Solution::operator==(Solution const &other) const
         && excessWeight_ == other.excessWeight_
         && excessVolume_ == other.excessVolume_
         && excessSalvage_ == other.excessSalvage_
+        && excessStores_ == other.excessStores_
         && timeWarp_ == other.timeWarp_
         && routes_.size() == other.routes_.size()
         && neighbours == other.neighbours;
@@ -163,6 +167,7 @@ Solution::Route::Route(ProblemData const &data, Visits const visits)
 
     Duration time = data.depot().twEarly;
     int prevClient = 0;
+    std::set<int> uniqueStores; 
 
     for (size_t idx = 0; idx != size(); ++idx)
     {
@@ -173,29 +178,32 @@ Solution::Route::Route(ProblemData const &data, Visits const visits)
         demandWeight_ += clientData.demandWeight;
         demandVolume_ += clientData.demandVolume;
         demandSalvage_ += clientData.demandSalvage;
+        uniqueStores.insert(static_cast<int>(clientData.clientStore));
         service_ += clientData.serviceDuration;
         prizes_ += clientData.prize;
-
+    
         centroid_.first += static_cast<double>(clientData.x) / size();
         centroid_.second += static_cast<double>(clientData.y) / size();
-
+    
         time += data.client(prevClient).serviceDuration
                 + data.duration(prevClient, visits_[idx]);
-
+        
         if (time < clientData.twEarly)  // add wait duration
         {
             wait_ += clientData.twEarly - time;
             time = clientData.twEarly;
         }
-
+        
         if (time > clientData.twLate)  // add time warp
         {
             timeWarp_ += time - clientData.twLate;
             time = clientData.twLate;
         }
 
-        prevClient = visits_[idx];
+        prevClient = visits_[idx]; 
     }
+
+    routeStores_ = uniqueStores.size();  // Set routeStores to the number of unique store IDs
 
     Client const last = visits_.back();  // last client has depot as successor
     distance_ += data.dist(last, 0);
@@ -215,7 +223,79 @@ Solution::Route::Route(ProblemData const &data, Visits const visits)
     excessSalvage_ = data.salvageCapacity() < demandSalvage_
                       ? demandSalvage_ - data.salvageCapacity()
                       : 0;
+
+    excessStores_ = data.routeStoreLimit() < routeStores_
+                      ? routeStores_ - data.routeStoreLimit()
+                      : 0;
 }
+
+
+//Solution::Route::Route(ProblemData const &data, Visits const visits)
+//    : visits_(std::move(visits)), centroid_({0, 0})
+//{
+//    if (visits_.empty())
+//        return;
+//
+//    Duration time = data.depot().twEarly;
+//    int prevClient = 0;
+//
+//    for (size_t idx = 0; idx != size(); ++idx)
+//    {
+//        auto const &clientData = data.client(visits_[idx]);
+//
+//        distance_ += data.dist(prevClient, visits_[idx]);
+//        duration_ += data.duration(prevClient, visits_[idx]);
+//        demandWeight_ += clientData.demandWeight;
+//        demandVolume_ += clientData.demandVolume;
+//        demandSalvage_ += clientData.demandSalvage;
+//        routeStores += ?
+//        service_ += clientData.serviceDuration;
+//        prizes_ += clientData.prize;
+//
+//        centroid_.first += static_cast<double>(clientData.x) / size();
+//        centroid_.second += static_cast<double>(clientData.y) / size();
+//
+//        time += data.client(prevClient).serviceDuration
+//                + data.duration(prevClient, visits_[idx]);
+//
+//        if (time < clientData.twEarly)  // add wait duration
+//        {
+//            wait_ += clientData.twEarly - time;
+//            time = clientData.twEarly;
+//        }
+//
+//        if (time > clientData.twLate)  // add time warp
+//        {
+//            timeWarp_ += time - clientData.twLate;
+//            time = clientData.twLate;
+//        }
+//
+//        prevClient = visits_[idx];
+//    }
+//
+//    Client const last = visits_.back();  // last client has depot as successor
+//    distance_ += data.dist(last, 0);
+//    duration_ += data.duration(last, 0);
+//
+//    time += data.client(last).serviceDuration + data.duration(last, 0);
+//    timeWarp_ += std::max<Duration>(time - data.depot().twLate, 0);
+//
+//    excessWeight_ = data.weightCapacity() < demandWeight_
+//                      ? demandWeight_ - data.weightCapacity()
+//                      : 0;
+//
+//    excessVolume_ = data.volumeCapacity() < demandVolume_
+//                      ? demandVolume_ - data.volumeCapacity()
+//                      : 0;
+//
+//    excessSalvage_ = data.salvageCapacity() < demandSalvage_
+//                      ? demandSalvage_ - data.salvageCapacity()
+//                      : 0;
+//
+//    excessStores_ = data.routeStoreLimit() < routeStores_
+//                      ? routeStores_ - data.routeStoreLimit()
+//                      : 0;
+//}
 
 
 bool Solution::Route::empty() const { return visits_.empty(); }
@@ -248,11 +328,15 @@ Load Solution::Route::demandVolume() const { return demandVolume_; }
 
 Salvage Solution::Route::demandSalvage() const { return demandSalvage_; }
 
+Store Solution::Route::routeStores() const { return routeStores_; }
+
 Load Solution::Route::excessWeight() const { return excessWeight_; }
 
 Load Solution::Route::excessVolume() const { return excessVolume_; }
 
 Salvage Solution::Route::excessSalvage() const { return excessSalvage_; }
+
+Store Solution::Route::excessStores() const { return excessStores_; }
 
 Duration Solution::Route::duration() const { return duration_; }
 
@@ -280,6 +364,8 @@ bool Solution::Route::hasExcessVolume() const { return excessVolume_ > 0; }
 
 bool Solution::Route::hasExcessSalvage() const { return excessSalvage_ > 0; }
 
+bool Solution::Route::hasExcessStores() const { return excessStores_ > 0; }
+
 bool Solution::Route::hasTimeWarp() const { return timeWarp_ > 0; }
 
 std::ostream &operator<<(std::ostream &out, Solution const &sol)
@@ -299,6 +385,8 @@ std::ostream &operator<<(std::ostream &out, Solution const &sol)
         if (routes[idx].hasExcessSalvage())
             out << "Excess salvage: " << routes[idx].excessSalvage() << '\n';
 
+        if (routes[idx].hasExcessStores())
+            out << "Excess stores: " << routes[idx].excessStores() << '\n';
     }
 
     return out;
